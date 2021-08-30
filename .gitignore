@@ -1,0 +1,18 @@
+# IDE Files
+.vscode/*
+.idea
+
+# However, include these templated IDE files
+!.vscode/launch.json
+
+# Node files
+node_modules
+
+# Build files
+dist
+
+# Test files
+coverage
+
+# Sensitive data
+.env
