@@ -140,6 +140,32 @@ export class ObjectSerializer {
         if (!parser) throw new Error(`Unknown type: ${format}`);
         return parser.stringify<X>(val);
     }
+
+    async findFileAsync(baseName: string, errorIfNotFound = false): Promise<string|null> {
+        const dir = path.dirname(baseName);
+
+        for (const file of await fs.promises.readdir(dir)) {
+            if (this.fileParsers[this.extFromFilename(file)]) {
+                return path.join(dir, file);
+            }
+        }
+
+        if (errorIfNotFound) throw new Error(`No such directory: ${dir}`);
+        return null;
+    }
+
+    findFileSync(baseName: string, errorIfNotFound = false): string|null {
+        const dir = path.dirname(baseName);
+
+        for (const file of fs.readdirSync(dir)) {
+            if (this.fileParsers[this.extFromFilename(file)]) {
+                return path.join(dir, file);
+            }
+        }
+
+        if (errorIfNotFound) throw new Error(`No such directory: ${dir}`);
+        return null;
+    }
 }
 
 export default new ObjectSerializer();
