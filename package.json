@@ -29,7 +29,7 @@
         "lint:fix": "eslint  --fix --ext .ts src test",
         "build": "npm run build:clean && npm run build:gen",
         "build:clean": "del-cli dist",
-        "build:check": "npm run build:check:mjs && npm run build:check:cjs",
+        "build:check": "npm run build:check:mjs && npm run build:check:cjs && npm run test",
         "build:check:mjs": "tsc --noEmit",
         "build:check:cjs": "tsc --noEmit -p tsconfig-cjs.json",
         "build:gen": "npm run build:gen:mjs && npm run build:gen:cjs",
@@ -45,15 +45,17 @@
     "devDependencies": {
         "@types/jest": "^27.0.1",
         "@types/mocha": "^9.0.0",
-        "@types/node": "^16.7.4",
-        "@typescript-eslint/eslint-plugin": "^4.29.3",
+        "@types/node": "^16.7.8",
+        "@types/tmp": "^0.2.1",
+        "@typescript-eslint/eslint-plugin": "^4.30.0",
         "del-cli": "^4.0.1",
-        "dotenv": "^10.0.0",
         "eslint": "^7.32.0",
         "jest": "^27.1.0",
         "nodemon": "^2.0.12",
         "npm-check-updates": "^11.8.3",
         "source-map-support": "^0.5.19",
+        "tmp": "^0.2.1",
+        "tmp-promise": "^3.0.2",
         "ts-jest": "^27.0.5",
         "ts-node": "^10.2.1",
         "typescript": "^4.4.2"
@@ -72,5 +74,9 @@
         "execMap": {
             "ts": "node -r ts-node/register"
         }
+    },
+    "optionalDependencies": {
+        "js-yaml": "^4.1.0",
+        "json5": "^2.2.0"
     }
 }

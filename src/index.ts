@@ -38,19 +38,6 @@ export abstract class ObjectFileParser {
     }
 }
 
-export class JsParser extends ObjectFileParser {
-    static readonly singleton = new JsParser();
-
-    parse<X>(raw: string): X { throw new Error("String parsing of JS not supported"); }
-    stringify<X>(val: X): string { throw new Error("Writing of JS not supported"); }
-
-    async fromFileAsync<X>(filename: string): Promise<X> { return require(filename); }
-    fromFileSync<X>(filename: string): X { return require(filename); }
-
-    async toFileAsync<X>(filename: string, val: X): Promise<X> { throw new Error("Writing of JS not supported"); }
-    toFileSync<X>(filename: string, val: X): X { throw new Error("Writing of JS not supported"); }
-}
-
 export class JsonParser extends ObjectFileParser {
     static readonly singleton = new JsonParser();
 
@@ -58,11 +45,19 @@ export class JsonParser extends ObjectFileParser {
     stringify<X>(val: X): string { return JSON.stringify(val, undefined, 2); }
 }
 
+export class HybridJsonParser extends ObjectFileParser {
+    static readonly singleton = new HybridJsonParser();
+
+    parse<X>(raw: string): X { return Json5Parser.singleton.parse(raw); }
+    stringify<X>(val: X): string { return JSON.stringify(val, undefined, 2); }
+}
+
 export class YamlParser extends ObjectFileParser {
     static readonly singleton = new YamlParser();
 
+    libName = "js-yaml";
     lib: any;
-    loadLib(): any { return this.lib ??= require("js-yaml"); }
+    loadLib(): any { return this.lib ??= require(this.libName); }
 
     parse<X>(raw: string): X {  return this.loadLib().load(raw); }
     stringify<X>(val: X): string { return this.loadLib().dump(val); }
@@ -71,8 +66,9 @@ export class YamlParser extends ObjectFileParser {
 export class Json5Parser extends ObjectFileParser {
     static readonly singleton = new Json5Parser();
 
+    libName = "json5";
     lib: any;
-    loadLib(): any { return this.lib ??= require("json5"); }
+    loadLib(): any { return this.lib ??= require(this.libName); }
 
     parse<X>(raw: string): X {  return this.loadLib().parse(raw); }
     stringify<X>(val: X): string { return this.loadLib().stringify(val, undefined, 2); }
@@ -81,14 +77,12 @@ export class Json5Parser extends ObjectFileParser {
 export type FileParsersMap = { [key: string]: ObjectFileParser|undefined };
 
 export type ObjectSerializerOptions = {
-    useJson5ForJson?: boolean,
-    enableJs?: boolean
+    useHybridJsonParser?: boolean,
     parsers?: FileParsersMap
 }
 
 export class ObjectSerializer {
     fileParsers: FileParsersMap  = {
-        js: undefined, // Disable by default for safety - must be enabled
         json: JsonParser.singleton,
         yml: YamlParser.singleton,
         yaml: YamlParser.singleton,
@@ -99,46 +93,49 @@ export class ObjectSerializer {
         if (opts) this.configure(opts);
     }
 
-    configure(opts: ObjectSerializerOptions = {}) {
+    configure(opts: ObjectSerializerOptions) {
         if (opts.parsers) this.fileParsers = { ...this.fileParsers, ...opts.parsers };
 
-        if (opts.enableJs) this.fileParsers.js ??= JsParser.singleton;
-        else this.fileParsers.js = undefined;
+        if (opts.useHybridJsonParser) this.fileParsers.json = HybridJsonParser.singleton;
 
-        if (opts.useJson5ForJson) this.fileParsers.json = this.fileParsers.json5;
+        return this;
+    }
+
+    extFromFilename(filename: string): string {
+        return path.extname(filename).replace(/^\./, "").toLowerCase();
     }
 
     fromFileAsync<X>(filename: string): Promise<X> {
-        const parser = this.fileParsers[path.extname(filename)?.toLowerCase()];
+        const parser = this.fileParsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return parser.fromFileAsync<X>(filename);
 
     }
     toFileAsync<X>(filename: string, val: X): Promise<X> {
-        const parser = this.fileParsers[path.extname(filename)?.toLowerCase()];
+        const parser = this.fileParsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return parser.toFileAsync<X>(filename, val);
     }
 
     fromFileSync<X>(filename: string): X {
-        const parser = this.fileParsers[path.extname(filename)?.toLowerCase()];
+        const parser = this.fileParsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return parser.fromFileSync<X>(filename);
 
     }
     toFileSync<X>(filename: string, val: X): X {
-        const parser = this.fileParsers[path.extname(filename)?.toLowerCase()];
+        const parser = this.fileParsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return parser.toFileSync<X>(filename, val);
     }
 
-    fromString<X>(format: string, raw: string): X {
+    parse<X>(format: string, raw: string): X {
         const parser = this.fileParsers[format];
-        if (!parser) throw new Error(`Unknown type for file: ${format}`);
+        if (!parser) throw new Error(`Unknown type: ${format}`);
         return parser.parse<X>(raw);
 
     }
-    toString<X>(format: string, val: X): string {
+    stringify<X>(format: string, val: X): string {
         const parser = this.fileParsers[format];
         if (!parser) throw new Error(`Unknown type: ${format}`);
         return parser.stringify<X>(val);

@@ -1,0 +1,2 @@
+// Test hybrid json - json5 in a json file
+{ "test": "hjson" }
