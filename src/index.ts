@@ -56,8 +56,8 @@ export class YamlParser extends ObjectFileParser {
     static readonly singleton = new YamlParser();
 
     libName = "js-yaml";
-    lib: any;
-    loadLib(): any { return this.lib ??= require(this.libName); }
+    lib: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    loadLib(): any { return this.lib ??= require(this.libName); } // eslint-disable-line @typescript-eslint/no-explicit-any
 
     parse<X>(raw: string): X {  return this.loadLib().load(raw); }
     stringify<X>(val: X): string { return this.loadLib().dump(val); }
@@ -67,8 +67,8 @@ export class Json5Parser extends ObjectFileParser {
     static readonly singleton = new Json5Parser();
 
     libName = "json5";
-    lib: any;
-    loadLib(): any { return this.lib ??= require(this.libName); }
+    lib: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    loadLib(): any { return this.lib ??= require(this.libName); } // eslint-disable-line @typescript-eslint/no-explicit-any
 
     parse<X>(raw: string): X {  return this.loadLib().parse(raw); }
     stringify<X>(val: X): string { return this.loadLib().stringify(val, undefined, 2); }
@@ -93,7 +93,7 @@ export class ObjectSerializer {
         if (opts) this.configure(opts);
     }
 
-    configure(opts: ObjectSerializerOptions) {
+    configure(opts: ObjectSerializerOptions): ObjectSerializer {
         if (opts.parsers) this.fileParsers = { ...this.fileParsers, ...opts.parsers };
 
         if (opts.useHybridJsonParser) this.fileParsers.json = HybridJsonParser.singleton;
@@ -105,13 +105,13 @@ export class ObjectSerializer {
         return path.extname(filename).replace(/^\./, "").toLowerCase();
     }
 
-    fromFileAsync<X>(filename: string): Promise<X> {
+    async fromFileAsync<X>(filename: string): Promise<X> {
         const parser = this.fileParsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return parser.fromFileAsync<X>(filename);
 
     }
-    toFileAsync<X>(filename: string, val: X): Promise<X> {
+    async toFileAsync<X>(filename: string, val: X): Promise<X> {
         const parser = this.fileParsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return parser.toFileAsync<X>(filename, val);
@@ -141,29 +141,44 @@ export class ObjectSerializer {
         return parser.stringify<X>(val);
     }
 
+    //
+    // @todo Code coverage is reporting much of the remainder of this function is untested
+    // BUT put breakpoints in and you will see it is - the inspection seems to fail through
+    // the opendir or the async iterator - not sure why - perhaps something to do with the
+    // memfs patch (see fsmock)?
+    // Or just a bug in istanbul with async iterators?
+    //
+    /* istanbul ignore next */
     async findFileAsync(baseName: string, errorIfNotFound = false): Promise<string|null> {
         const dir = path.dirname(baseName);
+        const name = `${path.basename(baseName)}.`;
 
-        for (const file of await fs.promises.readdir(dir)) {
+        const asyncIterator = await fs.promises.opendir(dir);
+        for await (const dirent of asyncIterator) {
+            if (!dirent.isFile()) continue;
+            const file = dirent.name;
+            if (!file.startsWith(name)) continue;
             if (this.fileParsers[this.extFromFilename(file)]) {
                 return path.join(dir, file);
             }
         }
 
-        if (errorIfNotFound) throw new Error(`No such directory: ${dir}`);
+        if (errorIfNotFound) throw new Error(`No matching file found: ${baseName}`);
         return null;
     }
 
     findFileSync(baseName: string, errorIfNotFound = false): string|null {
         const dir = path.dirname(baseName);
+        const name = `${path.basename(baseName)}.`;
 
         for (const file of fs.readdirSync(dir)) {
+            if (!file.startsWith(name)) continue;
             if (this.fileParsers[this.extFromFilename(file)]) {
                 return path.join(dir, file);
             }
         }
 
-        if (errorIfNotFound) throw new Error(`No such directory: ${dir}`);
+        if (errorIfNotFound) throw new Error(`No matching file found: ${baseName}`);
         return null;
     }
 }

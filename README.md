@@ -99,3 +99,17 @@ Parses ```raw``` from the specified ```format``` into a javascript object.  Thro
 ### ObjectSerializer.stringify(format, val)
 
 Stringifies ```val``` into the specified ```format```.  Throws an exception if the format is unknown.
+
+### ObjectSerializer.findFileAsync(baseName, errorIfNotFound = false)
+
+Locates a file of ```baseName``` with an extension matching on of the registered matching extensions and returns a promise resolving to the filename.  If ``errorIfNotFound``` is set, it throws an exception if no files are found.  Otherwise it returns a null of no files are found.
+
+**Note:** if multiple matching files are found, there is no guarentee of the order.
+
+### ObjectSerializer.findFileSync(baseName, errorIfNotFound = false)
+
+Locates a file of ```baseName``` with an extension matching on of the registered matching extensions and returns the filename.  If ``errorIfNotFound``` is set, it throws an exception if no files are found.  Otherwise it returns a null of no files are found.
+
+**Note:** if multiple matching files are found, there is no guarentee of the order.
+
+**Note:** This performs synchronous file IO and will block javascript execution.
