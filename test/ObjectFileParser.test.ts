@@ -1,9 +1,29 @@
+
+import fsmock from "./fsmock";
 import * as ObjSerializer from "../src/index";
 import defObjSerializer from "../src/index";
-import tmp from "tmp-promise";
-import fs from "fs";
+import path from "path";
+import fs from "fs"
 
-tmp.setGracefulCleanup();
+beforeAll(() => {
+    fsmock.populate(
+        {
+            "test-read/test-json.json": '{ "test": "json" }',
+            "test-read/test-json5.json5": '// Test\n{ test: "json5" }',
+            "test-read/test-yaml.yaml": '# Test\ntest: yaml',
+            "test-read/test-yaml.yml": '# Test\ntest: yml',
+            "test-read/test-hybrid.json": '// Test\n{ "test": "hjson" }',
+            "test-read/test-nomatch.xyz": 'xyzzy',
+            "test-write": null
+        },
+        "/__UNIT__TESTS__"
+    );
+});
+
+afterAll(() => {
+    fsmock.reset();
+});
+
 
 test("Verify Exports", () => {
     expect(ObjSerializer.ObjectFileParser).not.toBeNull();
@@ -83,24 +103,24 @@ test("Verify parsers option", () => {
     });
 });
 
-test("File type parser", ()=>{
+test("File type parser", () => {
     const t = new ObjSerializer.ObjectSerializer();
 
-    expect (t.extFromFilename("foo.json")).toEqual("json");
-    expect (t.extFromFilename("FoO.jSOn")).toEqual("json");
-    expect (t.extFromFilename("foo")).toEqual("");
-    expect (t.extFromFilename(".json")).toEqual("");
-    expect (t.extFromFilename("")).toEqual("");
+    expect(t.extFromFilename("foo.json")).toEqual("json");
+    expect(t.extFromFilename("FoO.jSOn")).toEqual("json");
+    expect(t.extFromFilename("foo")).toEqual("");
+    expect(t.extFromFilename(".json")).toEqual("");
+    expect(t.extFromFilename("")).toEqual("");
 })
 
 test("Unknown formats handling", async () => {
     const t = new ObjSerializer.ObjectSerializer();
 
-    expect(() => t.fromFileAsync("t.foo")).toThrowError("Unknown type for file: t.foo");
-    expect(() => t.fromFileSync("t.foo")).toThrowError("Unknown type for file: t.foo");
+    expect(t.fromFileAsync("/__UNIT__TESTS__/t.foo")).rejects.toThrowError("Unknown type for file: /__UNIT__TESTS__/t.foo");
+    expect(() => t.fromFileSync("/__UNIT__TESTS__/t.foo")).toThrowError("Unknown type for file: /__UNIT__TESTS__/t.foo");
 
-    expect(() => t.toFileAsync("t.foo", {})).toThrowError("Unknown type for file: t.foo");
-    expect(() => t.toFileSync("t.foo", {})).toThrowError("Unknown type for file: t.foo");
+    expect(t.toFileAsync("/__UNIT__TESTS__/t.foo", {})).rejects.toThrowError("Unknown type for file: /__UNIT__TESTS__/t.foo");
+    expect(() => t.toFileSync("/__UNIT__TESTS__/t.foo", {})).toThrowError("Unknown type for file: /__UNIT__TESTS__/t.foo");
 
     expect(() => t.parse("foo", "")).toThrowError("Unknown type: foo");
     expect(() => t.stringify("foo", {})).toThrowError("Unknown type: foo");
@@ -109,10 +129,10 @@ test("Unknown formats handling", async () => {
 test("Reading json", async () => {
     const t = new ObjSerializer.ObjectSerializer();
 
-    let rv = await t.fromFileAsync("./test/test.json");
+    let rv = await t.fromFileAsync("/__UNIT__TESTS__/test-read/test-json.json");
     expect(rv).toEqual({ test: "json" });
 
-    rv = t.fromFileSync("./test/test.json");
+    rv = t.fromFileSync("/__UNIT__TESTS__/test-read/test-json.json");
     expect(rv).toEqual({ test: "json" });
 
     rv = t.parse("json", '{ "test": "json" }');
@@ -124,38 +144,27 @@ test("Writing json", async () => {
     const val = { test: "out.json" };
     const expected = '{\n  "test": "out.json"\n}';
 
-    let fn = await tmp.tmpName({ postfix: ".json" });
-    try {
-        const rv = await t.toFileAsync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    let fn = "/__UNIT__TESTS__/test-write/json-1.json";
+    expect(await t.toFileAsync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    fn = await tmp.tmpName({ postfix: ".json" });
-    try {
-        const rv = t.toFileSync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    fn = "/__UNIT__TESTS__/test-write/json-2.json";
+    expect(t.toFileSync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    let rv = t.stringify("json", val) as any;
-    expect(rv).toEqual(expected);
+    expect(t.stringify("json", val)).toEqual(expected);
 });
 
 test("Reading json5", async () => {
     const t = new ObjSerializer.ObjectSerializer();
 
-    let rv = await t.fromFileAsync("./test/test.json5");
+    let rv = await t.fromFileAsync("/__UNIT__TESTS__/test-read/test-json5.json5");
     expect(rv).toEqual({ test: "json5" });
 
-    rv = t.fromFileSync("./test/test.json5");
+    rv = t.fromFileSync("/__UNIT__TESTS__/test-read/test-json5.json5");
     expect(rv).toEqual({ test: "json5" });
 
-    rv = t.parse("json5", '{ test: "json5" }');
+    rv = t.parse("json5", '//Test\n{ test: "json5" }');
     expect(rv).toEqual({ test: "json5" });
 });
 
@@ -164,38 +173,27 @@ test("Writing json5", async () => {
     const val = { test: "out.json5" };
     const expected = "{\n  test: 'out.json5',\n}";
 
-    let fn = await tmp.tmpName({ postfix: ".json5" });
-    try {
-        const rv = await t.toFileAsync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    let fn = "/__UNIT__TESTS__/test-write/json5-1.json5";
+    expect(await t.toFileAsync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    fn = await tmp.tmpName({ postfix: ".json5" });
-    try {
-        const rv = t.toFileSync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    fn = "/__UNIT__TESTS__/test-write/json5-2.json5";
+    expect(t.toFileSync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    let rv = t.stringify("json5", val) as any;
-    expect(rv).toEqual(expected);
+    expect(t.stringify("json5", val)).toEqual(expected);
 });
 
 test("Reading yaml", async () => {
     const t = new ObjSerializer.ObjectSerializer();
 
-    let rv = await t.fromFileAsync("./test/test.yaml");
+    let rv = await t.fromFileAsync("/__UNIT__TESTS__/test-read/test-yaml.yaml");
     expect(rv).toEqual({ test: "yaml" });
 
-    rv = t.fromFileSync("./test/test.yaml");
+    rv = t.fromFileSync("/__UNIT__TESTS__/test-read/test-yaml.yaml");
     expect(rv).toEqual({ test: "yaml" });
 
-    rv = t.parse("yaml", '{ test: "yaml" }');
+    rv = t.parse("yaml", '# Test\ntest: yaml');
     expect(rv).toEqual({ test: "yaml" });
 });
 
@@ -204,38 +202,27 @@ test("Writing yaml", async () => {
     const val = { test: "out.yaml" };
     const expected = 'test: out.yaml\n';
 
-    let fn = await tmp.tmpName({ postfix: ".yaml" });
-    try {
-        const rv = await t.toFileAsync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    let fn = "/__UNIT__TESTS__/test-write/yaml-1.yaml";
+    expect(await t.toFileAsync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    fn = await tmp.tmpName({ postfix: ".yaml" });
-    try {
-        const rv = t.toFileSync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    fn = "/__UNIT__TESTS__/test-write/yaml-1.yaml";
+    expect(t.toFileSync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    let rv = t.stringify("yaml", val) as any;
-    expect(rv).toEqual(expected);
+    expect(t.stringify("yaml", val)).toEqual(expected);
 });
 
-test("Reading yml", async () => {
+test("Reading yaml", async () => {
     const t = new ObjSerializer.ObjectSerializer();
 
-    let rv = await t.fromFileAsync("./test/test.yml");
+    let rv = await t.fromFileAsync("/__UNIT__TESTS__/test-read/test-yaml.yml");
     expect(rv).toEqual({ test: "yml" });
 
-    rv = t.fromFileSync("./test/test.yml");
+    rv = t.fromFileSync("/__UNIT__TESTS__/test-read/test-yaml.yml");
     expect(rv).toEqual({ test: "yml" });
 
-    rv = t.parse("yml", '{ test: "yml" }');
+    rv = t.parse("yaml", '# Test\ntest: yml');
     expect(rv).toEqual({ test: "yml" });
 });
 
@@ -244,35 +231,25 @@ test("Writing yml", async () => {
     const val = { test: "out.yml" };
     const expected = 'test: out.yml\n';
 
-    let fn = await tmp.tmpName({ postfix: ".yml" });
-    try {
-        const rv = await t.toFileAsync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    let fn = "/__UNIT__TESTS__/test-write/yaml-1.yml";
+    expect(await t.toFileAsync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    fn = await tmp.tmpName({ postfix: ".yml" });
-    try {
-        const rv = t.toFileSync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    fn = "/__UNIT__TESTS__/test-write/yaml-1.yml";
+    expect(t.toFileSync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    let rv = t.stringify("yml", val) as any;
-    expect(rv).toEqual(expected);
+    expect(t.stringify("yml", val)).toEqual(expected);
 });
+
 
 test("Reading hybrid json", async () => {
     const t = new ObjSerializer.ObjectSerializer({ useHybridJsonParser: true });
 
-    let rv = await t.fromFileAsync("./test/test-hybrid.json");
+    let rv = await t.fromFileAsync("/__UNIT__TESTS__/test-read/test-hybrid.json");
     expect(rv).toEqual({ test: "hjson" });
 
-    rv = t.fromFileSync("./test/test-hybrid.json");
+    rv = t.fromFileSync("/__UNIT__TESTS__/test-read/test-hybrid.json");
     expect(rv).toEqual({ test: "hjson" });
 
     rv = t.parse("json", '// Test\n{ "test": "hjson" }');
@@ -284,25 +261,36 @@ test("Writing hybrid json", async () => {
     const val = { test: "out.json" };
     const expected = '{\n  "test": "out.json"\n}';
 
-    let fn = await tmp.tmpName({ postfix: ".json" });
-    try {
-        const rv = await t.toFileAsync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    let fn = "/__UNIT__TESTS__/test-write/hjson-1.json";
+    expect(await t.toFileAsync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    fn = await tmp.tmpName({ postfix: ".json" });
-    try {
-        const rv = t.toFileSync(fn, val);
-        expect(rv).toEqual(val);
-        expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
-    } finally {
-        await fs.promises.unlink(fn);
-    }
+    fn = "/__UNIT__TESTS__/test-write/hjson-2.json";
+    expect(t.toFileSync(fn, val)).toEqual(val);
+    expect(await fs.promises.readFile(fn, "utf8")).toEqual(expected);
 
-    let rv = t.stringify("json", val) as any;
-    expect(rv).toEqual(expected);
+    expect(t.stringify("json", val)).toEqual(expected);
 });
 
+test("Verify findFileAsync", async () => {
+    const dir = "/__UNIT__TESTS__/test-read";
+    const t = new ObjSerializer.ObjectSerializer();
+    expect(t.findFileAsync(`${dir}/test-json`)).resolves.toEqual(path.join(dir, "test-json.json"));
+    expect(t.findFileAsync(`${dir}/test-nomatch`)).resolves.toBeNull();
+    expect(t.findFileAsync(`${dir}/test-json.`)).resolves.toBeNull();
+    expect(t.findFileAsync(`${dir}/test-jso`)).resolves.toBeNull();
+    expect(t.findFileAsync(`${dir}/foo`)).resolves.toBeNull();
+    expect(t.findFileAsync(`${dir}/foo/bar`, true)).rejects.toThrowError(/^ENOENT:/);
+    expect(t.findFileAsync(`${dir}/foo`, true)).rejects.toThrowError(`No matching file found: ${dir}/foo`);
+});
+
+test("Verify findFileSync", () => {
+    const t = new ObjSerializer.ObjectSerializer();
+    expect(t.findFileSync("/__UNIT__TESTS__/test-read/test-json")).toEqual(path.join("/__UNIT__TESTS__", "test-read", "test-json.json"));
+    expect(t.findFileSync(`/__UNIT__TESTS__/test-read/test-nomatch`)).toBeNull();
+    expect(t.findFileSync("/__UNIT__TESTS__/test-read/test-json.")).toBeNull();
+    expect(t.findFileSync("/__UNIT__TESTS__/test-read/test-jso")).toBeNull();
+    expect(t.findFileSync("/__UNIT__TESTS__/test-read/foo")).toBeNull();
+    expect(() => t.findFileSync("/__UNIT__TESTS__/__does_not_exist__/foo", true)).toThrowError(/^ENOENT:/);
+    expect(() => t.findFileSync("/__UNIT__TESTS__/test-read/foo", true)).toThrowError("No matching file found: /__UNIT__TESTS__/test-read/foo");
+});
