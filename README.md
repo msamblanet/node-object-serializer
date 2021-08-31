@@ -1,63 +1,101 @@
-# Node Typescript Template
+# Node Object Serializer
 
 This repository is part of a collection of my personal node.js libraries and templates.  I am making them available to the public - feel free to offer suggestions, report issues, or make PRs via GitHub.
 
-This project is a template node.js project for use with server-side typescript.  It provides for unit testing, typescript compilation, and debugging.  Configuration for debugging in Visual Studio Code is provided.
+This project provides a library to read JS objects from a file.  It supports multiple file formats and automatically selects based on extensions.  It can be extended by registing new marshlaing objects.
 
-## Usage
+## Supported file formats
 
-- Create a new GitHub project using the ```Use this template``` in Github
-    - If not using github, download or clone the files into your own repository
-- Review and update:
-    - [package.json](./package.json)
-    - [README.md](./README.md)
-    - [TODO.md](./TODO.md)
-    - [HISTORY.md](./HISTORY.md)
-    - [LICENSE](./LICENSE)
-- Implement your library in [src/index.ts](./src/index.ts)
-- Implement your main code in [src/main.ts](./src/main.ts)
-- Define any necessary 3rd party library typescript definitions in [src/@types](./src/@types)
-    - Delete [src/@types](./src/@types/example-module) once no longer needed
-- Implement your unit tests in [test/](./test)
-    - Unit test files should be named ```*.test.ts```
-    - Delete [test/example.test.ts](./test/example.test.ts) once no longer needed
+- JSON (using JSON.parse and JSON.stringify)
+    - **NOTE:** Circular references are not handled by the current implementation
+- JSON5 (requires an optional dependency of [json5](https://github.com/json5/json5))
+    - JSON5 is backwards compatible with JSON.  If you wish to use the JSON5 file for parsing ```.json``` files, configure with the ```useHybridJsonParser``` option set to true.
+    - **NOTE:** Circular references are not handled by the current implementation
+- YAML (requires an optional dependency of [js-yaml](https://github.com/nodeca/js-yaml))
+    - **NOTE:** Circular references are not handled by the current implementation
 
-## Features
+Make sure to install the JSON5 and YAML modules in your project if you plan to use them:
 
-- Preconfigured package.json for making both CJS and MJS style code
-- Integration with [Jest](https://jestjs.io/) for unit testing and code coverage reporting
-- Configuration with Visual Studio Code to provide debugging launch commands
-- Integration with eslint
+```
+npm install js-yaml json5
+```
 
-## npm run scripts available
+## Usage:
 
-- ```npm run dev``` - Runs ```src/main.ts``` script locally
-- ```npm run debug``` - Runs ```src/main.ts``` script locally with the JS inspector enabled
-- ```npm run nodemon``` - Runs ```src/main.ts``` script locally via nodemon (to restart on file changes)
-    - ```npm run nodemon:debug``` - Same as nodemon but has the JS inspector enabled
-- ```npm run test``` - Runs all of the Jest unit tests
-    - ```npm run test:debug``` - Same but has the JS inspector enabled
-    - ```npm run test:watch``` - Runs all of the Jest unit tests in watch mode (to retest on changes)
-    - ```npm run test:watch:debug``` - Same but has the JS inspector enabled
-- ```npm run lint``` - Runs eslint
-    - ```npm run lint:fix``` - Runs eslint with the fix option
-- ```npm run build``` - Performs a build:clean and build:gen to build the code
-    - ```npm run build:clean``` - Deletes the dist folder
-    - ```npm run build:check``` - Runs tsc without output to verify the code
-    - ```npm run build:gen``` - Runs tsc to compile the typescript
-- prepack - This is executed just before npm packages for release.  It runs a lint, build:check, and build to generate the library for packaging.
-- ```lib:check``` - Reports on updated dependencies WITHOUT installing any
-- ```lib:update:patch``` - Update and install all available patch level updates
-- ```lib:update:minor``` - Update and install all available patch and minor level updates
-- ```lib:update:latest``` - Update and install all available dependencies to the latest version (MAY INCLUDE BREAKING CHANGES)
-- ```lib:update:doctor``` - Run NCU in "doctor" mode to update all libraries - uses unit tests to see if any individual update breaks the system
-    - For more info, run ```npx ncu --doctor```
+### Using the default instance
 
-## VSCode Debug Actions
+The module exports a default instance by default.  Any configuration of this instance is shared across all code using the deault.
 
-- ```Unit Tests: All``` - Runs all unit tests in the debugger
-- ```Unit Tests: Watch``` - Runs all the unit tests in watch mode in the debugger
-- ```Unit Tests: Current File``` - Runs the currently open file as a unit test in the debugger
-- ```Debug: Current File``` - Runs the current file as application code in the debugger
-- ```Debug: src/main.ts``` - Runs the main entry point in the debugger
-- ```Debug: Attach to 5858``` - Ataches the IDE to the default JS inspector port locally
+```
+// Import the default instance
+import objSerializer from "@msamblanet/node-object-serializer";
+
+// If necessary, configure it here
+const options = { useHybridJsonParser: true };
+objSerializer.configure(options)
+
+// Load data...
+const a = await objSerializer.fromFileAsync("foo.json");
+const b = objSerializer.fromFileSync("bar.yml");
+const c = objSerializer.parse("json5", '{ a: 42 }');
+
+// Save data
+const data = { a: 1, b: { c: 3 }};
+await objSerializer.toFileAsync("foo2.json");
+objSerializer.toFileSync("bar2.yml");
+const t = objSerializer.stringify("json5", data);
+```
+
+### Using a custom instance
+
+To have a separate configuration:
+
+```
+import { ObjectSerializer } from "@msamblanet/node-object-serializer";
+const objSerializer = new ObjectSerializer();
+// Proceed to use this just like above...
+```
+
+## API
+
+### ObjectSerializer
+
+An object which contains the marshaling functions and configuration data.  The default export of the module is a singleton instance of ObjectSerializer.  If multiple configurations are required, instantiate separate instance of ObjectSerializer and do not use the singleton.
+
+The constructor takes an optional options to preconfigure the object.
+
+### ObjectSerializer.configure
+
+Method to configure the serializer.  Available options are:
+
+    - ```useHybridJsonParser``` - Replaces the JSON parser with the hybrid JSON parser.  The hybrid parser uses JSON5 for reading files but the standard ```JSON.stringify``` for writing.  This allow reading JSON files with comments and other JSON5 extensions while still writing JSON compatible files.
+    - ```parsers``` - A hash of parsers to add to the default parsers.  To disable an existing parser, add it to the map with a value of ```undefined```
+        - Custom parsers can be added by implementing the ```ObjectFileParser``` abstract class.  See [src/index.ts](src/index.ts) for the interface specification and examples.
+
+### ObjectSerializer.fromFileAsync(filename)
+
+Returns a promise which resolves to the object data loaded from ```filename```.  Throws an exception if the extension of filename is unknown.
+
+### ObjectSerializer.toFileAsync(filename, val)
+
+Returns a promise which resolves to ```val``` after the data has been written to ```filename```.  Throws an exception if the extension of filename is unknown.
+
+### ObjectSerializer.fromFileSync(filename)
+
+Returns the object data loaded from ```filename```..  Throws an exception if the format of extension is unknown.
+
+**Note:** This performs synchronous file IO and will block javascript execution.
+
+### ObjectSerializer.toFileSync(filename, val)
+
+Returns ```val``` after the data has been written to ```filename```.  Throws an exception if the extension of filename is unknown.
+
+**Note:** This performs synchronous file IO and will block javascript execution.
+
+### ObjectSerializer.parse(format, raw)
+
+Parses ```raw``` from the specified ```format``` into a javascript object.  Throws an exception if the format is unknown.
+
+### ObjectSerializer.stringify(format, val)
+
+Stringifies ```val``` into the specified ```format```.  Throws an exception if the format is unknown.

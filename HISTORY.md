@@ -1,5 +1,3 @@
-# Node Typescript Template - Revision History
+# Node Object Serializer - Revision History
 
-Replace this content for your project
-
-- 2021-08-27 - Initial version of Template
+- 2021-08-30 - Initial release
