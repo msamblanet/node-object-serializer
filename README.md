@@ -113,5 +113,3 @@ Locates a file of ```baseName``` with an extension matching on of the registered
 **Note:** if multiple matching files are found, there is no guarentee of the order.
 
 **Note:** This performs synchronous file IO and will block javascript execution.
-
-
