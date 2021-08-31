@@ -108,13 +108,13 @@ export class ObjectSerializer {
     async fromFileAsync<X>(filename: string): Promise<X> {
         const parser = this.fileParsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
-        return parser.fromFileAsync<X>(filename);
+        return await parser.fromFileAsync<X>(filename);
 
     }
     async toFileAsync<X>(filename: string, val: X): Promise<X> {
         const parser = this.fileParsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
-        return parser.toFileAsync<X>(filename, val);
+        return await parser.toFileAsync<X>(filename, val);
     }
 
     fromFileSync<X>(filename: string): X {
@@ -139,6 +139,18 @@ export class ObjectSerializer {
         const parser = this.fileParsers[format];
         if (!parser) throw new Error(`Unknown type: ${format}`);
         return parser.stringify<X>(val);
+    }
+
+    async findAndLoadAsync<X>(baseName: string, errorIfNotFound = false): Promise<X|null> {
+        const filename = await this.findFileAsync(baseName, errorIfNotFound);
+        if (filename) return await this.fromFileAsync(filename);
+        return null;
+    }
+
+    findAndLoadSync<X>(baseName: string, errorIfNotFound = false): X|null {
+        const filename = this.findFileSync(baseName, errorIfNotFound);
+        if (filename) return this.fromFileSync(filename);
+        return null;
     }
 
     async findFileAsync(baseName: string, errorIfNotFound = false): Promise<string|null> {
