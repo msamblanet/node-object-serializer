@@ -39,6 +39,10 @@ const a = await objSerializer.fromFileAsync("foo.json");
 const b = objSerializer.fromFileSync("bar.yml");
 const c = objSerializer.parse("json5", '{ a: 42 }');
 
+// These methods look for a file matching this name with a known extension
+const d = await objSerializer.findAndLoadAsync("foo/bar/config");
+const e = await objSerializer.findAndLoadSync("foo/bar/config");
+
 // Save data
 const data = { a: 1, b: { c: 3 }};
 await objSerializer.toFileAsync("foo2.json");
@@ -111,5 +115,15 @@ Locates a file of ```baseName``` with an extension matching on of the registered
 Locates a file of ```baseName``` with an extension matching on of the registered matching extensions and returns the filename.  If ``errorIfNotFound``` is set, it throws an exception if no files are found.  Otherwise it returns a null of no files are found.
 
 **Note:** if multiple matching files are found, there is no guarentee of the order.
+
+**Note:** This performs synchronous file IO and will block javascript execution.
+
+### ObjectSerializer.findAndLoadAsync<X>(baseName, errorIfNotFound = false)
+
+Convience methods to do a findFile and fromFile.
+
+### ObjectSerializer.findAndLoadSync<X>(baseName, errorIfNotFound = false)
+
+Convience methods to do a findFile and fromFile.
 
 **Note:** This performs synchronous file IO and will block javascript execution.
