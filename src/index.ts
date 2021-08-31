@@ -141,17 +141,18 @@ export class ObjectSerializer {
         return parser.stringify<X>(val);
     }
 
+    //
+    // @todo Code coverage is reporting much of the remainder of this function is untested
+    // BUT put breakpoints in and you will see it is - the inspection seems to fail through
+    // the opendir or the async iterator - not sure why - perhaps something to do with the
+    // memfs patch (see fsmock)?
+    // Or just a bug in istanbul with async iterators?
+    //
+    /* istanbul ignore next */
     async findFileAsync(baseName: string, errorIfNotFound = false): Promise<string|null> {
         const dir = path.dirname(baseName);
         const name = `${path.basename(baseName)}.`;
 
-        //
-        // @todo Code coverage is reporting much of the remainder of this function is untested
-        // BUT put breakpoints in and you will see it is - the inspection seems to fail through
-        // the opendir or the async iterator - not sure why - perhaps something to do with the
-        // memfs patch (see fsmock)?
-        // Or just a bug in istanbul with async iterators?
-        //
         const asyncIterator = await fs.promises.opendir(dir);
         for await (const dirent of asyncIterator) {
             if (!dirent.isFile()) continue;
