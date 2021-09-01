@@ -2,6 +2,12 @@
 
 import fs from "fs";
 import path from "path";
+import type JSON5 from "json5";
+import type JSYAML from "js-yaml";
+
+import { optionalRequire } from "optional-require";
+const json5 = optionalRequire("json5") as typeof JSON5 | undefined;
+const jsYaml = optionalRequire("js-yaml") as typeof JSYAML | undefined;
 
 export abstract class ObjectFileParser {
     //
@@ -38,52 +44,74 @@ export abstract class ObjectFileParser {
     }
 }
 
+export type JsonParserOptions = {
+    reviver?: (this: any, key: string, value: any) => any,
+    replacer?:  (this: any, key: string, value: any) => any,
+    space?: string | number
+}
 export class JsonParser extends ObjectFileParser {
     static readonly singleton = new JsonParser();
+    readonly options: JsonParserOptions
+    constructor(options?: JsonParserOptions) {
+        super();
+        this.options = { space: 2, ...options };
+    }
 
-    parse<X>(raw: string): X { return JSON.parse(raw); }
-    stringify<X>(val: X): string { return JSON.stringify(val, undefined, 2); }
-}
-
-export class HybridJsonParser extends ObjectFileParser {
-    static readonly singleton = new HybridJsonParser();
-
-    parse<X>(raw: string): X { return Json5Parser.singleton.parse(raw); }
-    stringify<X>(val: X): string { return JSON.stringify(val, undefined, 2); }
+    parse<X>(raw: string): X { return JSON.parse(raw, this.options.reviver); }
+    stringify<X>(val: X): string { return JSON.stringify(val, this.options.replacer, this.options.space); }
 }
 
 export class YamlParser extends ObjectFileParser {
-    static readonly singleton = new YamlParser();
+    static readonly singleton = jsYaml ? new YamlParser(jsYaml) : /* istanbul ignore next */ undefined;
+    readonly lib: typeof JSYAML;
+    readonly loadOptions?: JSYAML.LoadOptions;
+    readonly dumpOptions?: JSYAML.DumpOptions;
+    constructor(lib?: typeof JSYAML, loadOptions?: JSYAML.LoadOptions, dumpOptions?: JSYAML.DumpOptions) {
+        super();
+        /* istanbul ignore if */
+        if (!lib && !jsYaml) throw new Error("No JSYAML library provided or found");
+        this.lib = (lib ?? jsYaml) as typeof JSYAML;
+        this.loadOptions = loadOptions;
+        this.dumpOptions = dumpOptions;
+    }
 
-    libName = "js-yaml";
-    lib: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    loadLib(): any { return this.lib ??= require(this.libName); } // eslint-disable-line @typescript-eslint/no-explicit-any
-
-    parse<X>(raw: string): X {  return this.loadLib().load(raw); }
-    stringify<X>(val: X): string { return this.loadLib().dump(val); }
+    parse<X>(raw: string): X { return this.lib.load(raw, this.loadOptions) as X; }
+    stringify<X>(val: X): string { return this.lib.dump(val, this.dumpOptions); }
 }
 
 export class Json5Parser extends ObjectFileParser {
-    static readonly singleton = new Json5Parser();
+    static readonly singleton = json5 ? new Json5Parser(json5) : /* istanbul ignore next */ undefined
+    readonly lib: typeof JSON5
+    readonly options: JsonParserOptions
+    constructor(lib?: typeof JSON5, options?: JsonParserOptions) {
+        super();
+        /* istanbul ignore if */
+        if (!lib && !json5) throw new Error("No JSON5 library provided or found");
+        this.lib = (lib ?? json5) as typeof JSON5;
+        this.options = { space: 2, ...options };
+    }
 
-    libName = "json5";
-    lib: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    loadLib(): any { return this.lib ??= require(this.libName); } // eslint-disable-line @typescript-eslint/no-explicit-any
+    parse<X>(raw: string): X { return this.lib.parse(raw, this.options.reviver) as X; }
+    stringify<X>(val: X): string { return this.lib.stringify(val, this.options.replacer, this.options.space); }
+}
 
-    parse<X>(raw: string): X {  return this.loadLib().parse(raw); }
-    stringify<X>(val: X): string { return this.loadLib().stringify(val, undefined, 2); }
+export class HybridJsonParser extends Json5Parser {
+    static readonly singleton = json5 ? new HybridJsonParser(json5) : /* istanbul ignore next */ undefined;
+    constructor(lib: typeof JSON5, options?: JsonParserOptions) { super(lib, options); }
+
+    stringify<X>(val: X): string { return JSON.stringify(val, this.options.replacer, this.options.space); }
 }
 
 export type FileParsersMap = { [key: string]: ObjectFileParser|undefined };
 
 export type ObjectSerializerOptions = {
-    useHybridJsonParser?: boolean,
+    useStandardJsonParser?: boolean,
     parsers?: FileParsersMap
 }
 
 export class ObjectSerializer {
     fileParsers: FileParsersMap  = {
-        json: JsonParser.singleton,
+        json: HybridJsonParser.singleton ?? /* istanbul ignore next */ JsonParser.singleton,
         yml: YamlParser.singleton,
         yaml: YamlParser.singleton,
         json5: Json5Parser.singleton
@@ -95,9 +123,6 @@ export class ObjectSerializer {
 
     configure(opts: ObjectSerializerOptions): ObjectSerializer {
         if (opts.parsers) this.fileParsers = { ...this.fileParsers, ...opts.parsers };
-
-        if (opts.useHybridJsonParser) this.fileParsers.json = HybridJsonParser.singleton;
-
         return this;
     }
 

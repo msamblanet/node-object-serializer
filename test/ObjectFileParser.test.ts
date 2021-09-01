@@ -42,7 +42,7 @@ test("Verify Exports", () => {
 test("Verify Default Config", () => {
     let t = new ObjSerializer.ObjectSerializer();
     expect(t.fileParsers).toEqual({
-        json: ObjSerializer.JsonParser.singleton,
+        json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
         yaml: ObjSerializer.YamlParser.singleton,
         json5: ObjSerializer.Json5Parser.singleton
@@ -50,31 +50,13 @@ test("Verify Default Config", () => {
 
     t = new ObjSerializer.ObjectSerializer({});
     expect(t.fileParsers).toEqual({
-        json: ObjSerializer.JsonParser.singleton,
+        json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
         yaml: ObjSerializer.YamlParser.singleton,
         json5: ObjSerializer.Json5Parser.singleton
     });
 
     t = new ObjSerializer.ObjectSerializer().configure({});
-    expect(t.fileParsers).toEqual({
-        json: ObjSerializer.JsonParser.singleton,
-        yml: ObjSerializer.YamlParser.singleton,
-        yaml: ObjSerializer.YamlParser.singleton,
-        json5: ObjSerializer.Json5Parser.singleton
-    });
-})
-
-test("Verify Json5 option", () => {
-    let t = new ObjSerializer.ObjectSerializer().configure({ useHybridJsonParser: false });
-    expect(t.fileParsers).toEqual({
-        json: ObjSerializer.JsonParser.singleton,
-        yml: ObjSerializer.YamlParser.singleton,
-        yaml: ObjSerializer.YamlParser.singleton,
-        json5: ObjSerializer.Json5Parser.singleton
-    });
-
-    t = new ObjSerializer.ObjectSerializer().configure({ useHybridJsonParser: true });
     expect(t.fileParsers).toEqual({
         json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
@@ -86,8 +68,7 @@ test("Verify Json5 option", () => {
 test("Verify parsers option", () => {
     let t = new ObjSerializer.ObjectSerializer().configure({ parsers: {} });
     expect(t.fileParsers).toEqual({
-        js: undefined,
-        json: ObjSerializer.JsonParser.singleton,
+        json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
         yaml: ObjSerializer.YamlParser.singleton,
         json5: ObjSerializer.Json5Parser.singleton
@@ -95,8 +76,7 @@ test("Verify parsers option", () => {
 
     t = new ObjSerializer.ObjectSerializer().configure({ parsers: { foo: undefined, bar: ObjSerializer.JsonParser.singleton } });
     expect(t.fileParsers).toEqual({
-        js: undefined,
-        json: ObjSerializer.JsonParser.singleton,
+        json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
         yaml: ObjSerializer.YamlParser.singleton,
         json5: ObjSerializer.Json5Parser.singleton,
@@ -141,13 +121,14 @@ async function performReadTest(type: string, str: string, expected: unknown, opt
 
     expect(t.parse(type, str)).toEqual(expected);
 }
-test("Reading json", () => performReadTest("json", '{ "test": "json" }', { test: "json" }));
+test("Reading json (hybrid)", () => performReadTest("json", '{ "test": "json" }', { test: "json" }));
+test("Reading json (standard)", () => performReadTest("json", '{ "test": "json" }', { test: "json" }, { parsers: { json: ObjSerializer.JsonParser.singleton } }));
 test("Reading json5", () => performReadTest("json5", '//Test\n{ test: "json5" }', { test: "json5" }));
 test("Reading yaml", () => performReadTest("yaml", '# Test\ntest: yaml', { test: "yaml" }));
 test("Reading yml", () => performReadTest("yml", '# Test\ntest: yml', { test: "yml" }));
 test("Reading hybrid json", async () => {
     const fn = `${baseDir}/test-read/test-hybrid.json`;
-    const t = new ObjSerializer.ObjectSerializer({ useHybridJsonParser: true });
+    const t = new ObjSerializer.ObjectSerializer();
     const expected = { test: "hjson" };
 
     await expect(t.fromFileAsync(fn)).resolves.toEqual(expected);
@@ -168,11 +149,11 @@ async function performWriteTest(type: string, expected: string, val: unknown, op
 
     expect(t.stringify(type, val)).toEqual(expected);
 }
-test("Writing json", () => performWriteTest("json", '{\n  "test": "out.json"\n}', { test: "out.json" }));
+test("Writing json (hybrid)", () => performWriteTest("json", '{\n  "test": "out.json"\n}', { test: "out.json" }));
+test("Writing json (standard)", () => performWriteTest("json", '{\n  "test": "out.json"\n}', { test: "out.json" }, { parsers: { json: ObjSerializer.JsonParser.singleton } }));
 test("Writing json5", () => performWriteTest("json5", "{\n  test: 'out.json5',\n}", { test: "out.json5" }));
 test("Writing yaml", () => performWriteTest("yaml", 'test: out.yaml\n', { test: "out.yaml" }));
 test("Writing yml", () => performWriteTest("yml", 'test: out.yml\n', { test: "out.yml" }));
-test("Writing hybrid json", () => performWriteTest("json", '{\n  "test": "out.json"\n}', { test: "out.json" }, { useHybridJsonParser: true }));
 
 test("Verify findFileAsync", async () => {
     const t = new ObjSerializer.ObjectSerializer();
@@ -206,4 +187,22 @@ test("Verify findAndLoad missing files", async () => {
 
     await expect(t.findAndLoadAsync(`${baseDir}/test-read/foo`, true)).rejects.toThrowError(`No matching file found: ${baseDir}/test-read/foo`);
     expect(() => t.findAndLoadSync(`${baseDir}/test-read/foo`, true)).toThrowError(`No matching file found: ${baseDir}/test-read/foo`);
+});
+
+test("Test json with options", async () => {
+    const t = new ObjSerializer.ObjectSerializer({ parsers: { json: new ObjSerializer.JsonParser({ space: 0 }) } });
+    expect(t.stringify("json", {test: "StdJson"} )).toEqual('{"test":"StdJson"}');
+    // @todo Enhance unit tests to verify other options
+});
+
+test("Test json5 with options", async () => {
+    const t = new ObjSerializer.ObjectSerializer({ parsers: { json5: new ObjSerializer.Json5Parser(undefined, { space: 0 }) } });
+    expect(t.stringify("json5", {test: "StdJson"} )).toEqual("{test:'StdJson'}");
+    // @todo Enhance unit tests to verify other options
+});
+
+test("Test jsyaml with options", async () => {
+    const t = new ObjSerializer.ObjectSerializer({ parsers: { yaml: new ObjSerializer.YamlParser(undefined, undefined, { forceQuotes: true }) } });
+    expect(t.stringify("yaml", {test: "StdJson"} )).toEqual("test: 'StdJson'\n");
+    // @todo Enhance unit tests to verify other options
 });
