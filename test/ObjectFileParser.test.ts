@@ -41,7 +41,7 @@ test("Verify Exports", () => {
 
 test("Verify Default Config", () => {
     let t = new ObjSerializer.ObjectSerializer();
-    expect(t.fileParsers).toEqual({
+    expect(t["fileParsers"]).toEqual({
         json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
         yaml: ObjSerializer.YamlParser.singleton,
@@ -49,7 +49,7 @@ test("Verify Default Config", () => {
     });
 
     t = new ObjSerializer.ObjectSerializer({});
-    expect(t.fileParsers).toEqual({
+    expect(t["fileParsers"]).toEqual({
         json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
         yaml: ObjSerializer.YamlParser.singleton,
@@ -57,7 +57,7 @@ test("Verify Default Config", () => {
     });
 
     t = new ObjSerializer.ObjectSerializer().configure({});
-    expect(t.fileParsers).toEqual({
+    expect(t["fileParsers"]).toEqual({
         json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
         yaml: ObjSerializer.YamlParser.singleton,
@@ -67,7 +67,7 @@ test("Verify Default Config", () => {
 
 test("Verify parsers option", () => {
     let t = new ObjSerializer.ObjectSerializer().configure({ parsers: {} });
-    expect(t.fileParsers).toEqual({
+    expect(t["fileParsers"]).toEqual({
         json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
         yaml: ObjSerializer.YamlParser.singleton,
@@ -75,7 +75,7 @@ test("Verify parsers option", () => {
     });
 
     t = new ObjSerializer.ObjectSerializer().configure({ parsers: { foo: undefined, bar: ObjSerializer.JsonParser.singleton } });
-    expect(t.fileParsers).toEqual({
+    expect(t["fileParsers"]).toEqual({
         json: ObjSerializer.HybridJsonParser.singleton,
         yml: ObjSerializer.YamlParser.singleton,
         yaml: ObjSerializer.YamlParser.singleton,
@@ -108,7 +108,7 @@ test("Unknown formats handling", async () => {
     expect(() => t.stringify("foo", {})).toThrowError("Unknown type: foo");
 });
 
-async function performReadTest(type: string, str: string, expected: unknown, opts?: ObjSerializer.ObjectSerializerOptions) {
+async function performReadTest(type: string, str: string, expected: unknown, opts?: ObjSerializer.ObjectSerializerConfig) {
     const fnPrefix = `${baseDir}/test-read/test-${type}`;
     const fn = `${fnPrefix}.${type}`;
     const t = new ObjSerializer.ObjectSerializer(opts);
@@ -136,7 +136,7 @@ test("Reading hybrid json", async () => {
     expect(t.parse("json", '// Test\n{ "test": "hjson" }')).toEqual(expected);
 });
 
-async function performWriteTest(type: string, expected: string, val: unknown, opts?: ObjSerializer.ObjectSerializerOptions) {
+async function performWriteTest(type: string, expected: string, val: unknown, opts?: ObjSerializer.ObjectSerializerConfig) {
     const fn1 = `${baseDir}/test-write/test-${type}-1.${type}`;
     const fn2 = `${baseDir}/test-write/test-${type}-2.${type}`;
     const t = new ObjSerializer.ObjectSerializer(opts);
