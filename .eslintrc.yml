@@ -1,2 +1,3 @@
 root: true
-extends: ./foo/b/c/.eslintrc.yml
+extends:
+    - ./node_modules/@msamblanet/node-project-settings/base/.eslintrc.yml
