@@ -1,4 +1,5 @@
 # Node Object Serializer
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 This repository is part of a collection of my personal node.js libraries and templates.  I am making them available to the public - feel free to offer suggestions, report issues, or make PRs via GitHub.
 
@@ -8,8 +9,9 @@ This project provides a library to read JS objects from a file.  It supports mul
 
 - JSON (using JSON.parse and JSON.stringify)
     - **NOTE:** Circular references are not handled by the current implementation
+    - If the ```json5``` library is available, the library will use a hybrid parser for json, using JSON5 to parse and JSON.serialize to write
+    - JSON5 is backwards compatible with JSON.  If you wish to use the JSON parser, specify it as the parser in your options: ```const options = { parsers: { json: Parser.JsonParser.singleton } }```
 - JSON5 (requires an optional dependency of [json5](https://github.com/json5/json5))
-    - JSON5 is backwards compatible with JSON.  If you wish to use the JSON5 file for parsing ```.json``` files, configure with the ```useHybridJsonParser``` option set to true.
     - **NOTE:** Circular references are not handled by the current implementation
 - YAML (requires an optional dependency of [js-yaml](https://github.com/nodeca/js-yaml))
     - **NOTE:** Circular references are not handled by the current implementation
