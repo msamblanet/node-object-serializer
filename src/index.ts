@@ -1,10 +1,10 @@
 // This defines the exports available when importing this project as a library
 
-import fs from "fs";
+import Lib from "fs";
 import path from "path";
 import type JSON5 from "json5";
 import type JSYAML from "js-yaml";
-import extend from "extend";
+import { Config, Override, BaseConfigurable } from "@msamblanet/node-config-types";
 
 import { optionalRequire } from "optional-require";
 const json5 = optionalRequire("json5") as typeof JSON5 | undefined;
@@ -25,29 +25,29 @@ export abstract class ObjectFileParser {
     // Default implementation is a simple read-file-and-pass-to-parse/stringify
     //
     public async fromFileAsync<X>(filename: string): Promise<X> {
-        const raw = await fs.promises.readFile(filename, { encoding: "utf8" });
+        const raw = await Lib.promises.readFile(filename, { encoding: "utf8" });
         return this.parse(raw);
     }
     public fromFileSync<X>(filename: string): X {
-        const raw = fs.readFileSync(filename, { encoding: "utf8" });
+        const raw = Lib.readFileSync(filename, { encoding: "utf8" });
         return this.parse(raw);
     }
 
     public async toFileAsync<X>(filename: string, val: X): Promise<X> {
         const raw = this.stringify(val);
-        await fs.promises.writeFile(filename, raw, { encoding: "utf8" });
+        await Lib.promises.writeFile(filename, raw, { encoding: "utf8" });
         return val;
     }
     public toFileSync<X>(filename: string, val: X): X {
         const raw = this.stringify(val);
-        fs.writeFileSync(filename, raw, { encoding: "utf8" });
+        Lib.writeFileSync(filename, raw, { encoding: "utf8" });
         return val;
     }
 }
 
 export type JsonParserOptions = {
-    reviver?: (this: any, key: string, value: any) => any,
-    replacer?:  (this: any, key: string, value: any) => any,
+    reviver?: (this: unknown, key: string, value: unknown) => unknown,
+    replacer?:  (this: unknown, key: string, value: unknown) => unknown,
     space?: string | number
 }
 export class JsonParser extends ObjectFileParser {
@@ -105,14 +105,12 @@ export class HybridJsonParser extends Json5Parser {
 
 export type FileParsersMap = { [key: string]: ObjectFileParser|undefined };
 
-export type ObjectSerializerConfig = {
+export interface ObjectSerializerConfig extends Config {
     parsers: FileParsersMap
 }
-export type ObjectSerializerConfigOverrides = undefined | null | {
-    parsers?: FileParsersMap
-}
+export type ObjectSerializerConfigOverrides = Override<ObjectSerializerConfig>
 
-export class ObjectSerializer {
+export class ObjectSerializer extends BaseConfigurable<ObjectSerializerConfig> {
     public static readonly DEFAULT_OPTIONS: ObjectSerializerConfig = {
         parsers: {
             json: HybridJsonParser.singleton ?? /* istanbul ignore next */ JsonParser.singleton,
@@ -122,16 +120,8 @@ export class ObjectSerializer {
         }
     }
 
-    protected fileParsers: FileParsersMap = {}
-
-    public constructor(...opts: ObjectSerializerConfigOverrides[]) {
-        this.configure(...opts);
-    }
-
-    public configure(...opts: ObjectSerializerConfigOverrides[]): ObjectSerializer {
-        const mergedOpts: ObjectSerializerConfig = extend(true, {}, ObjectSerializer.DEFAULT_OPTIONS, ...opts);
-        this.fileParsers = { ...this.fileParsers, ...mergedOpts.parsers };
-        return this;
+    public constructor(...config: ObjectSerializerConfigOverrides[]) {
+        super(ObjectSerializer.DEFAULT_OPTIONS, ...config);
     }
 
     public extFromFilename(filename: string): string {
@@ -139,37 +129,37 @@ export class ObjectSerializer {
     }
 
     public async fromFileAsync<X>(filename: string): Promise<X> {
-        const parser = this.fileParsers[this.extFromFilename(filename)];
+        const parser = this.config.parsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return await parser.fromFileAsync<X>(filename);
 
     }
     public async toFileAsync<X>(filename: string, val: X): Promise<X> {
-        const parser = this.fileParsers[this.extFromFilename(filename)];
+        const parser = this.config.parsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return await parser.toFileAsync<X>(filename, val);
     }
 
     public fromFileSync<X>(filename: string): X {
-        const parser = this.fileParsers[this.extFromFilename(filename)];
+        const parser = this.config.parsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return parser.fromFileSync<X>(filename);
 
     }
     public toFileSync<X>(filename: string, val: X): X {
-        const parser = this.fileParsers[this.extFromFilename(filename)];
+        const parser = this.config.parsers[this.extFromFilename(filename)];
         if (!parser) throw new Error(`Unknown type for file: ${filename}`);
         return parser.toFileSync<X>(filename, val);
     }
 
     public parse<X>(format: string, raw: string): X {
-        const parser = this.fileParsers[format];
+        const parser = this.config.parsers[format];
         if (!parser) throw new Error(`Unknown type: ${format}`);
         return parser.parse<X>(raw);
 
     }
     public stringify<X>(format: string, val: X): string {
-        const parser = this.fileParsers[format];
+        const parser = this.config.parsers[format];
         if (!parser) throw new Error(`Unknown type: ${format}`);
         return parser.stringify<X>(val);
     }
@@ -190,12 +180,12 @@ export class ObjectSerializer {
         const dir = path.dirname(baseName);
         const name = `${path.basename(baseName)}.`;
 
-        const asyncIterator = await fs.promises.opendir(dir);
+        const asyncIterator = await Lib.promises.opendir(dir);
         for await (const dirent of asyncIterator) {
             if (!dirent.isFile()) continue;
             const file = dirent.name;
             if (!file.startsWith(name)) continue;
-            if (this.fileParsers[this.extFromFilename(file)]) {
+            if (this.config.parsers[this.extFromFilename(file)]) {
                 return path.join(dir, file);
             }
         }
@@ -208,9 +198,9 @@ export class ObjectSerializer {
         const dir = path.dirname(baseName);
         const name = `${path.basename(baseName)}.`;
 
-        for (const file of fs.readdirSync(dir)) {
+        for (const file of Lib.readdirSync(dir)) {
             if (!file.startsWith(name)) continue;
-            if (this.fileParsers[this.extFromFilename(file)]) {
+            if (this.config.parsers[this.extFromFilename(file)]) {
                 return path.join(dir, file);
             }
         }

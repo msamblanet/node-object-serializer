@@ -30,11 +30,9 @@ The module exports a default instance by default.  Any configuration of this ins
 
 ```
 // Import the default instance
-import objSerializer from "@msamblanet/node-object-serializer";
+import ObjectSerializer from "@msamblanet/node-object-serializer";
 
-// If necessary, configure it here
-const options = { useHybridJsonParser: true };
-objSerializer.configure(options)
+const objSerializer = new ObjectSerializer({ useHybridJsonParser: true });
 
 // Load data...
 const a = await objSerializer.fromFileAsync("foo.json");
@@ -64,19 +62,11 @@ const objSerializer = new ObjectSerializer();
 
 ## API
 
-### ObjectSerializer
+### ObjectSerializer(config...)
 
-An object which contains the marshaling functions and configuration data.  The default export of the module is a singleton instance of ObjectSerializer.  If multiple configurations are required, instantiate separate instance of ObjectSerializer and do not use the singleton.
+An object which contains the marshaling functions and configuration data.
 
 The constructor takes an optional options to preconfigure the object.
-
-### ObjectSerializer.configure
-
-Method to configure the serializer.  Available options are:
-
-    - ```useHybridJsonParser``` - Replaces the JSON parser with the hybrid JSON parser.  The hybrid parser uses JSON5 for reading files but the standard ```JSON.stringify``` for writing.  This allow reading JSON files with comments and other JSON5 extensions while still writing JSON compatible files.
-    - ```parsers``` - A hash of parsers to add to the default parsers.  To disable an existing parser, add it to the map with a value of ```undefined```
-        - Custom parsers can be added by implementing the ```ObjectFileParser``` abstract class.  See [src/index.ts](src/index.ts) for the interface specification and examples.
 
 ### ObjectSerializer.fromFileAsync(filename)
 
