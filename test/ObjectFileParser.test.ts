@@ -1,13 +1,17 @@
 
-import fsmock from "./fsmock";
+import { MockFs } from "@msamblanet/node-jest-util";
+
+const mockFs = new MockFs(jest);
+
 import * as Lib from "../src/index";
 import LibDefault from "../src/index";
 import path from "path";
 import fs from "fs"
 
-const baseDir = "/__UNIT__TESTS__";
+let baseDir: string;
 beforeAll(() => {
-    fsmock.populate(
+    mockFs.mock();
+    baseDir = mockFs.populate(
         {
             "test-read/test-json.json": '{ "test": "json" }',
             "test-read/test-json5.json5": '// Test\n{ test: "json5" }',
@@ -17,13 +21,12 @@ beforeAll(() => {
             "test-read/test-nomatch.xyz": 'xyzzy',
             "test-read/foo": null,
             "test-write": null
-        },
-        baseDir
+        }
     );
 });
 
 afterAll(() => {
-    fsmock.reset();
+    mockFs.reset();
 });
 
 
@@ -90,11 +93,11 @@ test("File type parser", () => {
 test("Unknown formats handling", async () => {
     const t = new Lib.ObjectSerializer();
 
-    await expect(t.fromFileAsync(`${baseDir}/t.foo`)).rejects.toThrowError("Unknown type for file: /__UNIT__TESTS__/t.foo");
-    expect(() => t.fromFileSync(`${baseDir}/t.foo`)).toThrowError("Unknown type for file: /__UNIT__TESTS__/t.foo");
+    await expect(t.fromFileAsync(`${baseDir}/t.foo`)).rejects.toThrowError(`Unknown type for file: ${baseDir}/t.foo`);
+    expect(() => t.fromFileSync(`${baseDir}/t.foo`)).toThrowError(`Unknown type for file: ${baseDir}/t.foo`);
 
-    await expect(t.toFileAsync(`${baseDir}/t.foo`, {})).rejects.toThrowError("Unknown type for file: /__UNIT__TESTS__/t.foo");
-    expect(() => t.toFileSync(`${baseDir}/t.foo`, {})).toThrowError("Unknown type for file: /__UNIT__TESTS__/t.foo");
+    await expect(t.toFileAsync(`${baseDir}/t.foo`, {})).rejects.toThrowError(`Unknown type for file: ${baseDir}/t.foo`);
+    expect(() => t.toFileSync(`${baseDir}/t.foo`, {})).toThrowError(`Unknown type for file: ${baseDir}/t.foo`);
 
     expect(() => t.parse("foo", "")).toThrowError("Unknown type: foo");
     expect(() => t.stringify("foo", {})).toThrowError("Unknown type: foo");

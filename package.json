@@ -1,6 +1,6 @@
 {
     "name": "@msamblanet/node-object-serializer",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "private": false,
     "description": "Utilities to serialize objects to/from files of various formats",
     "homepage": "https://github.com/msamblanet/node-object-serializer",
@@ -57,31 +57,26 @@
         ]
     },
     "dependencies": {
-        "@msamblanet/node-config-types": "^0.1.2",
+        "@msamblanet/node-config-types": "^0.2.1",
         "optional-require": "^1.1.7"
     },
     "devDependencies": {
-        "@msamblanet/node-project-settings": "^0.2.26",
+        "@msamblanet/node-jest-util": "^0.1.0",
+        "@msamblanet/node-project-settings": "^0.3.2",
         "@types/jest": "^27.0.1",
         "@types/js-yaml": "^4.0.3",
-        "@types/mocha": "^9.0.0",
-        "@types/node": "^16.7.13",
+        "@types/node": "^16.9.0",
         "@typescript-eslint/eslint-plugin": "^4.31.0",
         "del-cli": "^4.0.1",
-        "dotenv": "^10.0.0",
         "eslint": "^7.32.0",
-        "jest": "^27.1.0",
-        "memfs": "^3.2.4",
+        "jest": "^27.1.1",
         "nodemon": "^2.0.12",
         "npm-check-updates": "^11.8.5",
         "opener": "^1.5.2",
         "source-map-support": "^0.5.19",
-        "tmp": "^0.2.1",
-        "tmp-promise": "^3.0.2",
         "ts-jest": "^27.0.5",
         "ts-node": "^10.2.1",
-        "typescript": "^4.4.2",
-        "unionfs": "^4.4.0"
+        "typescript": "^4.4.2"
     },
     "optionalDependencies": {
         "js-yaml": "^4.1.0",
