@@ -74,7 +74,7 @@
         "jest": "^27.1.0",
         "memfs": "^3.2.4",
         "nodemon": "^2.0.12",
-        "npm-check-updates": "^11.8.5",
+        "npm-check-updates": "^16.0.6",
         "opener": "^1.5.2",
         "source-map-support": "^0.5.19",
         "tmp": "^0.2.1",
